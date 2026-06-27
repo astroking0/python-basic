@@ -1,0 +1,264 @@
+import json
+import os
+from datetime import datetime
+
+file_path = "food_prices.json"
+
+def load_data(f):
+    try:
+        with open(f, "r") as file:
+            data = json.load(file)
+            food = data.get("food", [])
+            prices = data.get("prices", [])
+            quantity = data.get("quantity", [])
+            
+            def to_int(value):
+                try:
+                    return int(value)
+                except (ValueError, TypeError):
+                    return 0
+            
+            quantity = [to_int(q) for q in quantity]
+            
+            total = data.get("total", 0)
+            if total == 0 and food:
+                total = sum(prices[i] * quantity[i] for i in range(len(food)))
+            
+            return food, prices, quantity, total
+    except (FileNotFoundError, json.JSONDecodeError):
+        return [], [], [], 0
+
+def save_data(f):
+    with open(f, "w") as file:
+        json.dump({
+            "food": food,
+            "prices": prices,
+            "quantity": quantity,
+            "total": total
+        }, file, indent=4)
+
+def update_total():
+    global total
+    total = sum(prices[i] * quantity[i] for i in range(len(food)))
+
+def add_item(item, price, qty):
+    if item.lower() in food:
+        print("❌ Item already exists.")
+        return False
+    
+    if not item or not item.isalpha():
+        print("❌ Invalid item name (letters only).")
+        return False
+    
+    try:
+        price = float(price)
+        qty = int(qty)
+    except (ValueError, TypeError):
+        print("❌ Invalid price or quantity.")
+        return False
+    
+    if price <= 0 or qty < 0:
+        print("❌ Price and quantity must be positive.")
+        return False
+    
+    food.append(item.lower())
+    prices.append(price)
+    quantity.append(qty)
+    update_total()
+    print(f"✅ '{item}' added successfully!")
+    return True
+
+def delete_item(food_item):
+    if food_item.isdigit():
+        index = int(food_item)
+        if 0 <= index < len(food):
+            removed = food.pop(index)
+            prices.pop(index)
+            quantity.pop(index)
+            update_total()
+            print(f"✅ '{removed}' deleted successfully!")
+            return True
+    elif food_item in food:
+        index = food.index(food_item)
+        removed = food.pop(index)
+        prices.pop(index)
+        quantity.pop(index)
+        update_total()
+        print(f"✅ '{removed}' deleted successfully!")
+        return True
+    else:
+        print("❌ Item not found.")
+        return False
+
+def view_items():
+    if not food:
+        print("📭 No items to display.")
+        return
+    
+    print("\n" + "=" * 60)
+    print("📋 CURRENT FOOD LIST")
+    print("=" * 60)
+    print(f"{'#':<5} {'Item':<20} {'Qty':<6} {'Price':<12} {'Total':<12}")
+    print("-" * 60)
+    
+    for i in range(len(food)):
+        item_total = prices[i] * quantity[i]
+        print(f"{i+1:<5} {food[i]:<20} {quantity[i]:<6} ${prices[i]:<11.2f} ${item_total:<11.2f}")
+    
+    print("-" * 60)
+    print(f"{'TOTAL':<5} {'':<20} {'':<6} {'':<12} ${total:<11.2f}")
+    print("=" * 60)
+
+def search_item(query):
+    results = []
+    if query.isdigit() and 0 <= int(query) < len(food):
+        index = int(query)
+        results.append((index, food[index], prices[index], quantity[index]))
+    else:
+        for i in range(len(food)):
+            if query.lower() in food[i]:
+                results.append((i, food[i], prices[i], quantity[i]))
+    
+    if results:
+        print("\n🔍 Search Results:")
+        for idx, name, price, qty in results:
+            print(f"  {idx+1}. {name} - ${price:.2f} (Qty: {qty})")
+    else:
+        print("❌ No items found.")
+
+def clear_all():
+    print("⚠️ Are you sure you want to clear ALL items? (yes/no)")
+    if input().lower() == 'yes':
+        print("🔒 Enter the password to confirm:")
+        if input() == "your_password":
+            food.clear()
+            prices.clear()
+            quantity.clear()
+            update_total()
+            print("🗑️ All items cleared successfully!")
+        else:
+            print("❌ Incorrect password. Operation cancelled.")
+    else:
+        print("Operation cancelled.")
+
+def update_item():
+    while True:
+        item = input("Enter item name or index to update (or 'done'): ")
+        if item.lower() == 'done' or item == '':
+            break
+        
+        index = None
+        if item.isdigit() and 0 <= int(item) < len(food):
+            index = int(item)
+        elif item.lower() in food:
+            index = food.index(item.lower())
+        else:
+            print("❌ Item not found.")
+            continue
+        
+        print(f"\n📝 Current: {food[index]} (Qty: {quantity[index]}) - ${prices[index]:.2f}")
+        print("What to update? (name/price/quantity)")
+        field = input().lower()
+        
+        if field not in ['name', 'price', 'quantity']:
+            print("❌ Invalid option.")
+            continue
+        
+        if field == 'price':
+            try:
+                new_val = float(input("New price: "))
+                if new_val > 0:
+                    prices[index] = new_val
+                    update_total()
+                    print("✅ Price updated!")
+                else:
+                    print("❌ Price must be positive.")
+            except ValueError:
+                print("❌ Invalid price.")
+        
+        elif field == 'quantity':
+            try:
+                new_val = int(input("New quantity: "))
+                if new_val >= 0:
+                    quantity[index] = new_val
+                    update_total()
+                    print("✅ Quantity updated!")
+                else:
+                    print("❌ Quantity cannot be negative.")
+            except ValueError:
+                print("❌ Invalid quantity.")
+        
+        elif field == 'name':
+            new_name = input("New name: ").strip()
+            if new_name and new_name.isalpha() and new_name.lower() not in food:
+                food[index] = new_name.lower()
+                print("✅ Name updated!")
+            else:
+                print("❌ Invalid name or already exists.")
+
+password = "your_password"
+if input("🔒 Enter password to access: ") != password:
+    print("❌ Incorrect password. Exiting.")
+    exit()
+
+food, prices, quantity, total = load_data(file_path)
+update_total()
+
+print("=" * 40)
+print("🍽️  FOOD MANAGER  🍽️")
+print("=" * 40)
+
+while True:
+    print("\n1️⃣  Add item")
+    print("2️⃣  View items")
+    print("3️⃣  Delete item")
+    print("4️⃣  Search item")
+    print("5️⃣  Clear all")
+    print("6️⃣  Update item")
+    print("7️⃣  Exit")
+    
+    choice = input("Choose an option: ")
+    
+    if choice == '1':
+        while True:
+            item = input("Food item (or 'done'): ")
+            if item.lower() == 'done' or item == '':
+                break
+            try:
+                price = float(input("Price: "))
+                qty = int(input("Quantity: "))
+                add_item(item, price, qty)
+            except ValueError:
+                print("❌ Invalid number format.")
+    
+    elif choice == '2':
+        view_items()
+    
+    elif choice == '3':
+        while True:
+            item = input("Item to delete (or 'done'): ")
+            if item.lower() == 'done' or item == '':
+                break
+            delete_item(item.lower())
+    
+    elif choice == '4':
+        while True:
+            query = input("Search (or 'done'): ")
+            if query.lower() == 'done' or query == '':
+                break
+            search_item(query)
+    
+    elif choice == '5':
+        clear_all()
+    
+    elif choice == '6':
+        update_item()
+    
+    elif choice == '7':
+        break
+    
+    else:
+        print("❌ Invalid option.")
+
+save_data(file_path)
+print(f"\n💾 Data saved to {file_path}.")
