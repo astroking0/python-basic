@@ -1,0 +1,51 @@
+def calculate_interest(interest, money, pastPeriod):
+    rate = interest / 100
+    total = money
+    for _ in range(int(pastPeriod)):
+        total += total * rate
+    return total
+
+def commission(final, initial):
+    return final - initial
+
+def calculate_debt(interest, debt, pastPeriod):
+    rate = interest / 100
+    total = debt
+    for _ in range(int(pastPeriod)):
+        total += total * rate
+    return total
+
+def loss(debt_after, debt_initial):
+    return debt_after - debt_initial
+
+print("Welcome to the interest calculator!")
+print("Select your option:")
+choice = input("Enter your card choice \n1-Visa card \n2-Credit Card: ")
+interest = 30
+
+try:
+    money = float(input("Enter the initial amount of money: "))
+    pastPeriod = float(input("Enter the past period (in years): "))
+except ValueError:
+    print("Invalid input. Please enter a number.")
+    exit()
+
+if choice == "1":
+    final_amount = calculate_interest(interest, money, pastPeriod)
+    profit = commission(final_amount, money)
+    print(f"The amount of money after {pastPeriod} years is: {final_amount:.2f}$")
+    print(f"Your profit is: {profit:.2f}$")
+
+elif choice == "2":
+    try:
+        debt = float(input("Enter the initial amount of debt: "))
+    except ValueError:
+        print("Invalid input. Please enter a number.")
+        exit()
+    debt_after = calculate_debt(interest, debt, pastPeriod)
+    loss_amount = loss(debt_after, debt)
+    print(f"The amount of debt after {pastPeriod} years is: {debt_after:.2f}$")
+    print(f"Your loss is: {loss_amount:.2f}$")
+
+else:
+    print("Invalid choice. Please select 1 or 2.")
